@@ -1,0 +1,5 @@
+{
+  "name": "NewsLens",
+  "description": "An intelligent news research assistant that helps users explore topics through current news and articles.",
+  "requestFramePermissions": []
+}
