@@ -5,12 +5,13 @@ import { Search, Loader2, Newspaper, ArrowRight } from 'lucide-react';
 
 // Initialize Gemini API
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+const NEWS_API_KEY = process.env.NEWS_API_KEY;
 
 const SYSTEM_INSTRUCTION = `You are NewsLens, an intelligent news research assistant built to help users explore any topic through current news and articles.
 
-When a user provides a topic, you will:
+When a user provides a topic and a list of real news articles, you will:
 1. Acknowledge the topic briefly and naturally
-2. Give a concise 2-3 sentence summary of what is currently happening with that topic
+2. Give a concise 2-3 sentence summary of what is currently happening based on the provided articles
 3. Highlight 2-3 key angles or perspectives being covered (e.g. political, economic, social)
 4. Note any notable trends, controversies, or developments worth knowing
 5. End with 1-2 suggested related topics the user might want to explore next
@@ -23,12 +24,21 @@ You are NOT a chatbot for general conversation. If the user asks something unrel
 
 Always stay neutral and present multiple perspectives when topics are politically or socially sensitive.`;
 
+interface Article {
+  title: string;
+  description: string;
+  url: string;
+  urlToImage: string | null;
+  source: { name: string };
+  publishedAt: string;
+}
+
 export default function App() {
   const [topic, setTopic] = useState('');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [groundingChunks, setGroundingChunks] = useState<any[]>([]);
+  const [articles, setArticles] = useState<Article[]>([]);
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,25 +47,40 @@ export default function App() {
     setLoading(true);
     setError(null);
     setResult(null);
-    setGroundingChunks([]);
+    setArticles([]);
 
     try {
+      // 1. Fetch articles from NewsAPI
+      const newsRes = await fetch(
+        `https://newsapi.org/v2/everything?q=${encodeURIComponent(topic)}&sortBy=publishedAt&pageSize=10&language=en&apiKey=${NEWS_API_KEY}`
+      );
+      const newsData = await newsRes.json();
+
+      if (newsData.status !== 'ok' || !newsData.articles?.length) {
+        throw new Error('No articles found for that topic. Try a different search.');
+      }
+
+      const fetchedArticles: Article[] = newsData.articles.filter(
+        (a: Article) => a.title && a.title !== '[Removed]'
+      );
+      setArticles(fetchedArticles);
+
+      // 2. Build article context for Gemini
+      const articleContext = fetchedArticles
+        .slice(0, 8)
+        .map((a, i) => `${i + 1}. "${a.title}" — ${a.source.name}. ${a.description || ''}`)
+        .join('\n');
+
+      // 3. Send to Gemini for summary
       const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: `Research this topic: ${topic}`,
+        model: 'gemini-2.0-flash',
+        contents: `Research this topic: ${topic}\n\nHere are the latest news articles:\n${articleContext}`,
         config: {
           systemInstruction: SYSTEM_INSTRUCTION,
-          tools: [{ googleSearch: {} }],
         },
       });
 
-      setResult(response.text || 'No results found.');
-      
-      // Extract grounding chunks for sources
-      const chunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks;
-      if (chunks) {
-        setGroundingChunks(chunks);
-      }
+      setResult(response.text || 'No summary generated.');
     } catch (err: any) {
       console.error(err);
       setError(err.message || 'An error occurred while researching the topic.');
@@ -113,41 +138,48 @@ export default function App() {
           </div>
         )}
 
-        {/* Results Area */}
+        {/* AI Summary */}
         {result && (
-          <div className="bg-white border border-gray-200 rounded-3xl p-6 sm:p-8 shadow-sm animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="bg-white border border-gray-200 rounded-3xl p-6 sm:p-8 shadow-sm mb-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="prose prose-blue max-w-none prose-headings:font-semibold prose-a:text-blue-600 hover:prose-a:text-blue-500">
               <Markdown>{result}</Markdown>
             </div>
-            
-            {/* Sources */}
-            {groundingChunks.length > 0 && (
-              <div className="mt-8 pt-6 border-t border-gray-100">
-                <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wider mb-4">
-                  Sources
-                </h3>
-                <ul className="space-y-3">
-                  {groundingChunks.map((chunk, index) => {
-                    if (chunk.web?.uri && chunk.web?.title) {
-                      return (
-                        <li key={index} className="flex items-start">
-                          <ArrowRight className="w-4 h-4 text-gray-400 mt-1 mr-2 flex-shrink-0" />
-                          <a
-                            href={chunk.web.uri}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-sm text-gray-600 hover:text-blue-600 transition-colors line-clamp-1"
-                          >
-                            {chunk.web.title}
-                          </a>
-                        </li>
-                      );
-                    }
-                    return null;
-                  })}
-                </ul>
-              </div>
-            )}
+          </div>
+        )}
+
+        {/* Article Cards */}
+        {articles.length > 0 && (
+          <div>
+            <h2 className="text-sm font-semibold text-gray-900 uppercase tracking-wider mb-4">
+              Latest Articles
+            </h2>
+            <ul className="space-y-4">
+              {articles.map((article, index) => (
+                <li key={index} className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm hover:shadow-md transition-shadow">
+                  <a href={article.url} target="_blank" rel="noopener noreferrer" className="flex gap-4 items-start">
+                    {article.urlToImage && (
+                      <img
+                        src={article.urlToImage}
+                        alt=""
+                        className="w-20 h-20 object-cover rounded-xl flex-shrink-0"
+                        onError={(e) => (e.currentTarget.style.display = 'none')}
+                      />
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-xs font-medium text-blue-600">{article.source.name}</span>
+                        <span className="text-xs text-gray-400">
+                          {new Date(article.publishedAt).toLocaleDateString()}
+                        </span>
+                      </div>
+                      <p className="text-sm font-semibold text-gray-900 line-clamp-2 mb-1">{article.title}</p>
+                      <p className="text-xs text-gray-500 line-clamp-2">{article.description}</p>
+                    </div>
+                    <ArrowRight className="w-4 h-4 text-gray-400 flex-shrink-0 mt-1" />
+                  </a>
+                </li>
+              ))}
+            </ul>
           </div>
         )}
       </div>
