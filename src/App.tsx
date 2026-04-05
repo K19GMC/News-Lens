@@ -71,7 +71,7 @@ export default function App() {
 
       // 3. Send to Gemini for summary
       const response = await ai.models.generateContent({
-        model: 'gemini-1.5-flash-latest',
+        model: 'gemini-2.0-flash-lite',
         contents: `Research this topic: ${topic}\n\nHere are the latest news articles:\n${articleContext}`,
         config: {
           systemInstruction: SYSTEM_INSTRUCTION,
