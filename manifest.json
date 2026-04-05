@@ -1,0 +1,16 @@
+{
+  "name": "NewsLens",
+  "short_name": "NewsLens",
+  "description": "Your intelligent news research assistant",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f9fafb",
+  "theme_color": "#2563eb",
+  "icons": [
+    {
+      "src": "/news lens ico.ico",
+      "sizes": "any",
+      "type": "image/x-icon"
+    }
+  ]
+}
