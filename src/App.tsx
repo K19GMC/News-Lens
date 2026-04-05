@@ -4,8 +4,8 @@ import Markdown from 'react-markdown';
 import { Search, Loader2, Newspaper, ArrowRight } from 'lucide-react';
 
 // Initialize Gemini API
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-const NEWS_API_KEY = process.env.NEWS_API_KEY;
+const ai = new GoogleGenAI({ apiKey: (import.meta as any).env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY });
+const NEWS_API_KEY = (import.meta as any).env.VITE_NEWS_API_KEY || process.env.NEWS_API_KEY;
 
 const SYSTEM_INSTRUCTION = `You are NewsLens, an intelligent news research assistant built to help users explore any topic through current news and articles.
 
