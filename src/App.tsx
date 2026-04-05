@@ -51,7 +51,7 @@ export default function App() {
 
     try {
       // 1. Fetch articles from NewsAPI
-      const newsRes = await fetch(
+      const newsRes = await fetch(`/api/news?topic=${encodeURIComponent(topic)}`);
         `https://newsapi.org/v2/everything?q=${encodeURIComponent(topic)}&sortBy=publishedAt&pageSize=10&language=en&apiKey=${NEWS_API_KEY}`
       );
       const newsData = await newsRes.json();
