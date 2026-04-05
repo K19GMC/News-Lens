@@ -1,28 +1,5 @@
 import { useState } from 'react';
-import { GoogleGenAI } from '@google/genai';
-import Markdown from 'react-markdown';
 import { Search, Loader2, Newspaper, ArrowRight } from 'lucide-react';
-
-// Initialize Gemini API
-const ai = new GoogleGenAI({ apiKey: (import.meta as any).env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY });
-const NEWS_API_KEY = (import.meta as any).env.VITE_NEWS_API_KEY || process.env.NEWS_API_KEY;
-
-const SYSTEM_INSTRUCTION = `You are NewsLens, an intelligent news research assistant built to help users explore any topic through current news and articles.
-
-When a user provides a topic and a list of real news articles, you will:
-1. Acknowledge the topic briefly and naturally
-2. Give a concise 2-3 sentence summary of what is currently happening based on the provided articles
-3. Highlight 2-3 key angles or perspectives being covered (e.g. political, economic, social)
-4. Note any notable trends, controversies, or developments worth knowing
-5. End with 1-2 suggested related topics the user might want to explore next
-
-Tone: Informative, neutral, and conversational. Never robotic or overly formal.
-Format: Use clean markdown with short headers and bullet points where helpful. Keep it scannable.
-Length: Medium — enough to be useful, short enough to read in under a minute.
-
-You are NOT a chatbot for general conversation. If the user asks something unrelated to news or topic research, politely redirect them back to news exploration.
-
-Always stay neutral and present multiple perspectives when topics are politically or socially sensitive.`;
 
 interface Article {
   title: string;
@@ -36,7 +13,6 @@ interface Article {
 export default function App() {
   const [topic, setTopic] = useState('');
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [articles, setArticles] = useState<Article[]>([]);
 
@@ -46,11 +22,9 @@ export default function App() {
 
     setLoading(true);
     setError(null);
-    setResult(null);
     setArticles([]);
 
     try {
-      // 1. Fetch articles from NewsAPI
       const newsRes = await fetch(`/api/news?topic=${encodeURIComponent(topic)}`);
       const newsData = await newsRes.json();
 
@@ -62,23 +36,6 @@ export default function App() {
         (a: Article) => a.title && a.title !== '[Removed]'
       );
       setArticles(fetchedArticles);
-
-      // 2. Build article context for Gemini
-      const articleContext = fetchedArticles
-        .slice(0, 8)
-        .map((a, i) => `${i + 1}. "${a.title}" — ${a.source.name}. ${a.description || ''}`)
-        .join('\n');
-
-      // 3. Send to Gemini for summary
-      const response = await ai.models.generateContent({
-        model: 'gemini-2.0-flash-lite',
-        contents: `Research this topic: ${topic}\n\nHere are the latest news articles:\n${articleContext}`,
-        config: {
-          systemInstruction: SYSTEM_INSTRUCTION,
-        },
-      });
-
-      setResult(response.text || 'No summary generated.');
     } catch (err: any) {
       console.error(err);
       setError(err.message || 'An error occurred while researching the topic.');
@@ -90,7 +47,6 @@ export default function App() {
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900 font-sans selection:bg-blue-200">
       <div className="max-w-3xl mx-auto px-4 py-12 sm:px-6 lg:px-8">
-        {/* Header */}
         <div className="text-center mb-12">
           <div className="inline-flex items-center justify-center p-3 bg-blue-100 rounded-full mb-4">
             <Newspaper className="w-8 h-8 text-blue-600" />
@@ -103,7 +59,6 @@ export default function App() {
           </p>
         </div>
 
-        {/* Search Form */}
         <form onSubmit={handleSearch} className="mb-12 relative">
           <div className="relative flex items-center">
             <input
@@ -128,7 +83,6 @@ export default function App() {
           </div>
         </form>
 
-        {/* Error State */}
         {error && (
           <div className="p-4 bg-red-50 border border-red-200 rounded-2xl text-red-700 mb-8">
             <p className="font-medium">Error</p>
@@ -136,9 +90,6 @@ export default function App() {
           </div>
         )}
 
-      
-
-        {/* Article Cards */}
         {articles.length > 0 && (
           <div>
             <h2 className="text-sm font-semibold text-gray-900 uppercase tracking-wider mb-4">
