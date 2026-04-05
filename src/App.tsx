@@ -136,14 +136,7 @@ export default function App() {
           </div>
         )}
 
-        {/* AI Summary */}
-        {result && (
-          <div className="bg-white border border-gray-200 rounded-3xl p-6 sm:p-8 shadow-sm mb-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="prose prose-blue max-w-none prose-headings:font-semibold prose-a:text-blue-600 hover:prose-a:text-blue-500">
-              <Markdown>{result}</Markdown>
-            </div>
-          </div>
-        )}
+      
 
         {/* Article Cards */}
         {articles.length > 0 && (
